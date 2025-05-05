@@ -589,8 +589,10 @@ namespace CodingSeb.ExpressionEvaluator
         /// By default = false
         /// </summary>
         public bool OptionForceIntegerNumbersEvaluationsAsDoubleByDefault { get; set; }
+        public bool OptionForceIntAsDecimalDefault { get; set; }
 
-        private CultureInfo cultureInfoForNumberParsing = CultureInfo.InvariantCulture.Clone() as CultureInfo;
+
+		private CultureInfo cultureInfoForNumberParsing = CultureInfo.InvariantCulture.Clone() as CultureInfo;
 
         /// <summary>
         /// The culture used to evaluate numbers.<para/>
@@ -1787,6 +1789,10 @@ namespace CodingSeb.ExpressionEvaluator
                         stack.Push(parseFunc(numberNoType, CultureInfoForNumberParsing));
                     }
                 }
+                else if (OptionForceIntAsDecimalDefault || numberMatch.Groups["hasdecimal"].Success)
+                {
+					stack.Push(decimal.Parse(numberMatch.Value.Replace("_", ""), NumberStyles.Any, CultureInfoForNumberParsing));
+				}
                 else if (OptionForceIntegerNumbersEvaluationsAsDoubleByDefault || numberMatch.Groups["hasdecimal"].Success)
                 {
                     stack.Push(double.Parse(numberMatch.Value.Replace("_", ""), NumberStyles.Any, CultureInfoForNumberParsing));
@@ -2941,7 +2947,11 @@ namespace CodingSeb.ExpressionEvaluator
                     {
                         Type type = ((object)left).GetType();
 
-                        if(type.IsArray && OptionForceIntegerNumbersEvaluationsAsDoubleByDefault)
+                        if(type.IsArray && OptionForceIntAsDecimalDefault)
+                        {
+							oIndexingArgs = oIndexingArgs.ConvertAll(o => o is decimal ? (int)o : o);
+						}
+                        else if(type.IsArray && OptionForceIntegerNumbersEvaluationsAsDoubleByDefault)
                         {
                             oIndexingArgs = oIndexingArgs.ConvertAll(o => o is double ? (int)o : o);
                         }
@@ -2953,7 +2963,35 @@ namespace CodingSeb.ExpressionEvaluator
                                     && property.GetIndexParameters().All(parameter => parameter.ParameterType.IsAssignableFrom(oIndexingArgs[parameter.Position].GetType())))
                                 .ToArray();
 
-                            if (itemProperties.Length == 0 && OptionForceIntegerNumbersEvaluationsAsDoubleByDefault)
+                            if(itemProperties.Length == 0 && OptionForceIntAsDecimalDefault)
+                            {
+								List<dynamic> backupIndexedArgs = oIndexingArgs.ToList();
+
+								itemProperties = type.GetProperties()
+									.Where(property => property.Name.Equals("Item")
+										&& property.GetIndexParameters().Length == oIndexingArgs.Count
+										&& property.GetIndexParameters().All(parameter =>
+										{
+											if(parameter.ParameterType.IsAssignableFrom(((object)oIndexingArgs[parameter.Position]).GetType()))
+											{
+												return true;
+											}
+											else if(parameter.ParameterType == typeof(int) && oIndexingArgs[parameter.Position] is decimal)
+											{
+												oIndexingArgs[parameter.Position] = (int)oIndexingArgs[parameter.Position];
+												return true;
+											}
+											else
+											{
+												return false;
+											}
+										}))
+									.ToArray();
+
+								if(itemProperties.Length == 0)
+									oIndexingArgs = backupIndexedArgs;
+							}
+							if (itemProperties.Length == 0 && OptionForceIntegerNumbersEvaluationsAsDoubleByDefault)
                             {
                                 List<dynamic> backupIndexedArgs = oIndexingArgs.ToList();
 
