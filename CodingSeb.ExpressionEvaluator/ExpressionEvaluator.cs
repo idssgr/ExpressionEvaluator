@@ -2696,11 +2696,16 @@ namespace CodingSeb.ExpressionEvaluator
                     && !nestedTypeMatch.Groups["isfunction"].Success)
                 {
                     subIndex = nestedTypeMatch.Length;
-                    typeName += $"+{nestedTypeMatch.Groups["name"].Value}{((i + subIndex < expression.Length && expression.Substring(i + subIndex)[0] == '?') ? "?" : "") }";
+                    bool isNullable = i + subIndex < expression.Length && expression.Substring(i + subIndex)[0] == '?';
+					typeName += $"+{nestedTypeMatch.Groups["name"].Value}";
 
                     Type nestedType = GetTypeByFriendlyName(typeName, nestedTypeMatch.Groups["isgeneric"].Value);
                     if (nestedType != null)
                     {
+                        if(nestedType.IsValueType && isNullable)
+                        {
+                            nestedType = typeof(Nullable<>).MakeGenericType(nestedType);
+                        }
                         i += subIndex;
                         staticType = nestedType;
 
@@ -3976,11 +3981,21 @@ namespace CodingSeb.ExpressionEvaluator
 
         protected virtual Type[] GetConcreteTypes(string genericsTypes)
         {
-            return genericsDecodeRegex
-                .Matches(genericsEndOnlyOneTrim.Replace(genericsTypes.TrimStart(' ', '<'), ""))
-                .Cast<Match>()
-                .Select(match => GetTypeByFriendlyName(match.Groups["name"].Value, match.Groups["isgeneric"].Value, true))
-                .ToArray();
+            //return genericsDecodeRegex
+            //    .Matches(genericsEndOnlyOneTrim.Replace(genericsTypes.TrimStart(' ', '<'), ""))
+            //    .Cast<Match>()
+            //    .Select(match => GetTypeByFriendlyName(match.Groups["name"].Value, match.Groups["isgeneric"].Value, true))
+            //    .ToArray();
+			return genericsDecodeRegex
+				.Matches(genericsEndOnlyOneTrim.Replace(genericsTypes.TrimStart(' ', '<'), ""))
+				.Cast<Match>()
+				.Select(match =>
+                {
+                    int i = 0;
+                    return EvaluateType(match.Groups["name"].Value, ref i, match.Groups["isgeneric"].Value);
+                })
+				.ToArray();
+			
         }
 
         protected virtual BindingFlags DetermineInstanceOrStatic(ref Type objType, ref object obj, ref ValueTypeNestingTrace valueTypeNestingTrace)
@@ -4080,35 +4095,41 @@ namespace CodingSeb.ExpressionEvaluator
                 {
                     s = expression.Substring(i, 1);
 
-                    if (s.Equals(startChar))
+                    if(s.Equals(startChar))
                     {
                         bracketCount++;
                     }
-                    else if (s.Equals("("))
+                    else if(s.Equals("("))
                     {
                         i++;
                         currentExpression += "(" + GetExpressionsBetweenParenthesesOrOtherImbricableBrackets(expression, ref i, false, ",", "(", ")").SingleOrDefault() + ")";
                         continue;
                     }
-                    else if (s.Equals("{"))
+                    else if(s.Equals("{"))
                     {
                         i++;
                         currentExpression += "{" + GetExpressionsBetweenParenthesesOrOtherImbricableBrackets(expression, ref i, false, ",", "{", "}").SingleOrDefault() + "}";
                         continue;
                     }
-                    else if (s.Equals("["))
+                    else if(s.Equals("["))
                     {
                         i++;
                         currentExpression += "[" + GetExpressionsBetweenParenthesesOrOtherImbricableBrackets(expression, ref i, false, ",", "[", "]").SingleOrDefault() + "]";
                         continue;
                     }
+                    else if(s.Equals("<"))
+                    {
+                        i++;
+						currentExpression += "<" + GetExpressionsBetweenParenthesesOrOtherImbricableBrackets(expression, ref i, false, ",", "<", ">").SingleOrDefault() + ">";
+						continue;
+					}
 
-                    if (s.Equals(endChar))
+                    if(s.Equals(endChar))
                     {
                         bracketCount--;
-                        if (bracketCount == 0)
+                        if(bracketCount == 0)
                         {
-                            if (!currentExpression.Trim().Equals(string.Empty))
+                            if(!currentExpression.Trim().Equals(string.Empty))
                                 expressionsList.Add(currentExpression);
                             break;
                         }
