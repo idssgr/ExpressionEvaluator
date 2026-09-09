@@ -60,6 +60,6 @@
     </None>
   </ItemGroup>
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="echo $(TargetFramework)&#xD;&#xA;if $(TargetFramework)==net462 (&#xD;&#xA;if $(ConfigurationName)==Debug copy /Y $(TargetPath) ..\..\..\..\..\..\..\Glx\BaseLine\Sources\Output\Debug\Apps\Customs&#xD;&#xA;if $(ConfigurationName)==Debug copy /Y $(TargetDir)$(ProjectName).pdb ..\..\..\..\..\..\..\Glx\BaseLine\Sources\Output\Debug\Apps\Customs&#xD;&#xA;if $(ConfigurationName)==Release copy /Y $(TargetPath) ..\..\..\..\..\..\..\Glx\BaseLine\Sources\Output\Release\Apps\Customs&#xD;&#xA;)" />
+    <Exec Command="if $(ConfigurationName)==Debug copy /Y $(TargetPath) ..\..\..\..\..\..\..\Glx\BaseLine\Sources\Output\Debug\Apps\Customs&#xD;&#xA;if $(ConfigurationName)==Debug copy /Y $(TargetDir)$(ProjectName).pdb ..\..\..\..\..\..\..\Glx\BaseLine\Sources\Output\Debug\Apps\Customs&#xD;&#xA;if $(ConfigurationName)==Release copy /Y $(TargetPath) ..\..\..\..\..\..\..\Glx\BaseLine\Sources\Output\Release\Apps\Customs&#xD;&#xA;" />
   </Target>
 </Project>
